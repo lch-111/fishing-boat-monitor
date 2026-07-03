@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>海洋渔船北斗轨迹大数据监测平台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b1a3a;color:#fff;font-family:'Microsoft YaHei',sans-serif;overflow-x:hidden}
+.header{background:linear-gradient(90deg,#0a1a4a 0%,#0d2b6e 50%,#0a1a4a 100%);border-bottom:2px solid #00d4ff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:26px;letter-spacing:4px;background:linear-gradient(90deg,#00d4ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .time{font-size:18px;color:#00d4ff;font-family:monospace}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;padding:15px 15px 0 15px}
+.stat-card{background:rgba(6,30,80,0.7);border:1px solid rgba(0,212,255,0.3);border-radius:8px;padding:15px;text-align:center}
+.stat-value{font-size:32px;font-weight:bold;color:#00ff88;font-family:monospace;text-shadow:0 0 10px rgba(0,255,136,0.5)}
+.stat-label{font-size:14px;color:#8ab4c7;margin-top:4px}
+.container{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:15px;padding:15px;height:calc(100vh - 160px)}
+.left-col{display:grid;grid-template-rows:380px 260px 260px;gap:15px}
+.right-col{display:grid;grid-template-rows:260px 260px 380px;gap:15px}
+.center-col{display:grid;grid-template-rows:380px 260px 260px;gap:15px}
+.center-mid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.center-bottom{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.panel{background:rgba(6,30,80,0.6);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:12px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#00d4ff,transparent)}
+.panel-title{font-size:16px;color:#00d4ff;margin-bottom:10px;padding-left:10px;border-left:3px solid #00d4ff;flex-shrink:0}
+.chart{width:100%;flex:1;min-height:0}
+.tab-container{display:flex;gap:0;margin-bottom:8px}
+.tab-btn{flex:1;text-align:center;padding:4px 8px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:#8ab4c7;cursor:pointer;font-size:12px;border-radius:4px 4px 0 0}
+.tab-btn.active{background:rgba(0,212,255,0.2);color:#00ff88;border-color:#00ff88}
+.tab-content{display:none;flex:1;min-height:0}
+.tab-content.active{display:flex;flex-direction:column}
+.merged-alert-list{flex:1;overflow-y:auto;padding-right:5px;margin-top:5px;border-top:1px solid rgba(0,212,255,0.2);padding-top:5px}
+.merged-alert-list::-webkit-scrollbar{width:5px}
+.merged-alert-list::-webkit-scrollbar-thumb{background:#00d4ff;border-radius:3px}
+.alert-item{display:flex;align-items:center;padding:8px 10px;margin-bottom:6px;background:rgba(255,60,60,0.08);border-left:3px solid #ff3c3c;border-radius:4px;font-size:13px}
+.alert-item.level-2{background:rgba(255,165,0,0.08);border-left-color:#ffa500}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-right:10px;flex-shrink:0}
+.alert-dot.red{background:#ff3c3c}
+.alert-dot.orange{background:#ffa500}
+.alert-text{flex:1;color:#cfeeff}
+.alert-time{color:#8ab4c7;font-size:12px;margin-left:8px}
+.carousel-list{flex:1;overflow-y:auto;padding-right:5px}
+.carousel-list::-webkit-scrollbar{width:5px}
+.carousel-list::-webkit-scrollbar-thumb{background:#00d4ff;border-radius:3px}
+.carousel-item{padding:6px 10px;margin:2px 0;background:rgba(0,212,255,0.06);border-radius:6px;border-left:3px solid transparent;height:40px;display:flex;align-items:center}
+.carousel-item.highlight{background:rgba(0,212,255,0.18);border-left:3px solid #00ff88;box-shadow:0 0 12px rgba(0,255,136,0.2)}
+.carousel-row{display:grid;grid-template-columns:1.4fr 1.4fr 1fr 1fr;gap:4px;align-items:center;font-size:12px}
+.carousel-row .id{font-weight:bold;color:#00ff88}
+.carousel-row .area{color:#8ab4c7}
+.carousel-row .speed{font-weight:bold}
+.carousel-row .speed.speed-high{color:#ff3c3c}
+.carousel-row .speed.speed-mid{color:#ffa500}
+.carousel-row .speed.speed-low{color:#00ff88}
+.carousel-row .status{padding:1px 8px;border-radius:12px;display:inline-block;text-align:center;font-size:11px}
+.carousel-row .status.working{background:rgba(0,255,136,0.15);color:#00ff88}
+.carousel-row .status.returning{background:rgba(255,165,0,0.15);color:#ffa500}
+.sea-map{width:100%;height:100%;position:relative;background:radial-gradient(ellipse at center,#0d2b6e 0%,#061e50 70%,#0b1a3a 100%);border-radius:6px;overflow:hidden}
+.sea-grid{position:absolute;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(0,212,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.05) 1px,transparent 1px);background-size:40px 40px}
+.coast-line{position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(180deg,transparent 0%,rgba(0,150,100,0.15) 100%);clip-path:polygon(0% 100%,0% 60%,15% 55%,30% 65%,45% 50%,60% 58%,75% 48%,90% 55%,100% 45%,100% 100%)}
+#boatLayer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.boat{position:absolute;width:8px;height:8px;border-radius:50%;box-shadow:0 0 10px currentColor}
+.boat.dragnet{background:#ff6b6b;color:#ff6b6b}
+.boat.seine{background:#4ecdc4;color:#4ecdc4}
+.boat.gillnet{background:#ffe66d;color:#ffe66d}
+.boat.unknown{background:#aaa;color:#aaa}
+.boat::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:currentColor;opacity:0.2;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse 2s infinite}
+@keyframes pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:0.3}100%{transform:translate(-50%,-50%) scale(3);opacity:0}}
+.map-legend{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.5);padding:8px 12px;border-radius:6px;font-size:12px;border:1px solid rgba(0,212,255,0.2)}
+.legend-item{display:flex;align-items:center;margin:3px 0;color:#cfeeff}
+.legend-dot{width:8px;height:8px;border-radius:50%;margin-right:6px}
+.map-labels{position:absolute;top:10px;left:10px;font-size:13px;color:rgba(255,255,255,0.75);text-shadow:0 0 6px rgba(0,212,255,0.4)}
+.map-labels div{margin:5px 0}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>海洋渔船北斗轨迹大数据监测平台</h1>
+    <div class="time" id="clock">--</div>
+</div>
+<div class="stats-row">
+    <div class="stat-card"><div class="stat-value" id="totalPoints">--</div><div class="stat-label">轨迹点数</div></div>
+    <div class="stat-card"><div class="stat-value" id="totalShips">--</div><div class="stat-label">活跃渔船</div></div>
+    <div class="stat-card"><div class="stat-value" id="avgSpeed">--</div><div class="stat-label">平均航速 (节)</div></div>
+    <div class="stat-card"><div class="stat-value" id="hotGridCount">--</div><div class="stat-label">高频海域网格数</div></div>
+</div>
+<div class="container">
+    <div class="left-col">
+        <div class="panel">
+            <div class="panel-title">渔船活动动态 <span style="color:#00ff88;font-size:12px;">轮播</span></div>
+            <div class="carousel-list" id="carouselList"></div>
+        </div>
+        <div class="panel"><div class="panel-title">作业时长分布</div><div class="chart" id="durationChart"></div></div>
+        <div class="panel"><div class="panel-title">渔船活动范围 Top20</div><div class="chart" id="distanceChart"></div></div>
+    </div>
+    <div class="center-col">
+        <div class="panel">
+            <div class="panel-title">海域渔船实时分布 <span style="color:#00ff88;font-size:12px;">北斗定位</span></div>
+            <div class="sea-map" id="seaMap">
+                <div class="sea-grid"></div><div class="coast-line"></div><div id="boatLayer"></div>
+                <div class="map-labels">
+                    <div>▲ 渤海湾渔场</div><div>▲ 黄海中部渔场</div><div>▲ 东海近海渔场</div>
+                    <div>▲ 舟山群岛渔场</div><div>▲ 南海北部渔场</div>
+                </div>
+                <div class="map-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>拖网作业</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#4ecdc4"></div>围网作业</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#ffe66d"></div>流刺网作业</div>
+                </div>
+            </div>
+        </div>
+        <div class="center-mid">
+            <div class="panel"><div class="panel-title">24小时出海频次</div><div class="chart" id="hourChart"></div></div>
+            <div class="panel"><div class="panel-title">作业类型占比</div><div class="chart" id="trendChart"></div></div>
+        </div>
+        <div class="center-bottom">
+            <div class="panel"><div class="panel-title">近7日出海频次趋势</div><div class="chart" id="pieChart"></div></div>
+            <div class="panel"><div class="panel-title">出海频次 Top20</div><div class="chart" id="shipTopChart"></div></div>
+        </div>
+    </div>
+    <div class="right-col">
+        <div class="panel"><div class="panel-title">海域网格渔船密度热力图</div><div class="chart" id="heatmapChart"></div></div>
+        <div class="panel"><div class="panel-title">平均航速对比（按作业类型）</div><div class="chart" id="avgSpeedChart"></div></div>
+        <div class="panel">
+            <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <span>异常停泊 / 跨界捕捞</span>
+                <div class="tab-container" style="margin-bottom:0">
+                    <button class="tab-btn active" onclick="switchTab('abnormal')">异常停泊</button>
+                    <button class="tab-btn" onclick="switchTab('cross')">跨界捕捞</button>
+                </div>
+            </div>
+            <div id="tabAbnormal" class="tab-content active" style="flex:1; min-height:0; flex-direction:column">
+                <div id="abnormalScatter" style="flex:0 0 60%; min-height:0"></div>
+                <div class="merged-alert-list" id="mergedAlertList"></div>
+            </div>
+            <div id="tabCross" class="tab-content" style="flex:1; min-height:0">
+                <div id="crossChart" style="flex:1; min-height:0"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+var shipTopChart=echarts.init(document.getElementById('shipTopChart'));
+var durationChart=echarts.init(document.getElementById('durationChart'));
+var hourChart=echarts.init(document.getElementById('hourChart'));
+var trendChart=echarts.init(document.getElementById('trendChart'));
+var pieChart=echarts.init(document.getElementById('pieChart'));
+var heatmapChart=echarts.init(document.getElementById('heatmapChart'));
+var avgSpeedChart=echarts.init(document.getElementById('avgSpeedChart'));
+var distanceChart=echarts.init(document.getElementById('distanceChart'));
+var abnormalScatterChart=echarts.init(document.getElementById('abnormalScatter'));
+var crossChart=echarts.init(document.getElementById('crossChart'));
+var carouselData=[], currentSlide=0, carouselTimer=null, isPaused=false;
+function setUpdateTime(){
+    var n=new Date();
+    document.getElementById('clock').innerText = n.getFullYear()+'-'+
+        (n.getMonth()+1).toString().padStart(2,'0')+'-'+
+        n.getDate().toString().padStart(2,'0')+' '+
+        n.getHours().toString().padStart(2,'0')+':'+
+        n.getMinutes().toString().padStart(2,'0')+':'+
+        n.getSeconds().toString().padStart(2,'0');
+}
+function switchTab(tab){
+    var btnAbnormal = document.querySelector('.tab-btn:nth-child(1)');
+    var btnCross = document.querySelector('.tab-btn:nth-child(2)');
+    var divAbnormal = document.getElementById('tabAbnormal');
+    var divCross = document.getElementById('tabCross');
+    if(tab === 'abnormal'){
+        btnAbnormal.classList.add('active'); btnCross.classList.remove('active');
+        divAbnormal.classList.add('active'); divCross.classList.remove('active');
+        abnormalScatterChart.resize();
+    } else {
+        btnCross.classList.add('active'); btnAbnormal.classList.remove('active');
+        divCross.classList.add('active'); divAbnormal.classList.remove('active');
+        crossChart.resize();
+    }
+}
+function renderCarousel(){
+    var list=document.getElementById('carouselList');
+    if(!carouselData.length){
+        list.innerHTML='<div style="color:#888;text-align:center;padding:20px;">暂无当天数据</div>';
+        return;
+    }
+    var html='';
+    carouselData.forEach(function(item,i){
+        var speed=item.speed, status=item.status;
+        var sc=status==='作业中'?'working':'returning';
+        var spc=speed>12?'speed-high':(speed>=8?'speed-mid':'speed-low');
+        var active=i===currentSlide?'highlight':'';
+        html+='<div class="carousel-item '+active+'"><div class="carousel-row">'+
+            '<span class="id">'+item.ship+'</span>'+
+            '<span class="area">'+item.area+'</span>'+
+            '<span class="speed '+spc+'">'+speed+' <span style="font-size:11px;color:#8ab4c7;">节</span></span>'+
+            '<span class="status '+sc+'">'+status+'</span>'+
+            '</div></div>';
+    });
+    list.innerHTML=html;
+    var activeEl=list.querySelector('.carousel-item.highlight');
+    if(activeEl) activeEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function nextSlide(){ if(!carouselData.length) return; currentSlide=(currentSlide+1)%carouselData.length; renderCarousel(); }
+function startCarousel(){ if(carouselTimer) clearInterval(carouselTimer); carouselTimer=setInterval(function(){ if(!isPaused) nextSlide(); },3000); }
+function loadCarousel(){
+    fetch('/api/realtime/latest-boats').then(r=>r.json()).then(function(data){
+        if(!data||!data.length){ carouselData=[]; currentSlide=0; renderCarousel(); return; }
+        var maxDate='';
+        data.forEach(function(item){ var d=(item.time||'').slice(0,10); if(d>maxDate) maxDate=d; });
+        carouselData=data.filter(function(item){ return (item.time||'').slice(0,10)===maxDate; });
+        currentSlide=0; renderCarousel(); startCarousel();
+    });
+}
+document.getElementById('carouselList').addEventListener('mouseenter',function(){ isPaused=true; });
+document.getElementById('carouselList').addEventListener('mouseleave',function(){ isPaused=false; });
+function loadSummary(){
+    fetch('/api/realtime/summary').then(r=>r.json()).then(function(d){
+        document.getElementById('totalPoints').innerText=d.total_points||0;
+        document.getElementById('totalShips').innerText=d.total_ships||0;
+        document.getElementById('avgSpeed').innerText=d.avg_speed||0;
+        document.getElementById('hotGridCount').innerText=d.hot_grid_count||0;
+    });
+}
+function loadShipTop20(){
+    fetch('/api/realtime/ship-top20').then(r=>r.json()).then(function(d){
+        if(!d||!d.ships||!d.ships.length){ shipTopChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        var blueColors=['#003566','#0088cc','#00d4ff'];
+        shipTopChart.setOption({tooltip:{trigger:'axis'},grid:{left:95,right:15,top:10,bottom:35},xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'category',data:d.ships.reverse(),axisLabel:{color:'#fff',fontSize:9,interval:0}},series:[{type:'bar',data:d.values.reverse().map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
+    });
+}
+function loadDuration(){
+    fetch('/api/static/work-duration-dist').then(r=>r.json()).then(function(d){
+        if(!d||!d.ranges||!d.ranges.length){ durationChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        durationChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.ranges,axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#4ecdc4'}}]});
+    });
+}
+function loadHour(){
+    fetch('/api/realtime/peak-hour').then(r=>r.json()).then(function(d){
+        if(!d||!d.hours||!d.hours.length){ hourChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        hourChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.hours,axisLabel:{color:'#8ab4c7',fontSize:10,interval:2}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#00d4ff'}}]});
+    });
+}
+function loadPie(){
+    fetch('/api/realtime/worktype-ratio').then(r=>r.json()).then(function(d){
+        if(!d||!d.length){ trendChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        trendChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {d}%'},legend:{bottom:0,textStyle:{color:'#8ab4c7',fontSize:11}},series:[{type:'pie',radius:['30%','55%'],center:['50%','50%'],data:d,label:{color:'#fff',position:'outer',formatter:'{b}\n{d}%',alignTo:'edge',margin:20},labelLine:{length:10,length2:15},color:['#ff6b6b','#4ecdc4','#ffe66d']}]});
+    });
+}
+function loadTrend(){
+    fetch('/api/realtime/daily-points').then(r=>r.json()).then(function(d){
+        if(!d||!d.dates||!d.dates.length){ pieChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        pieChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.dates.slice(-7),axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value'},series:[{type:'line',data:d.values.slice(-7),smooth:true,lineStyle:{color:'#00ff88'},areaStyle:{color:'rgba(0,255,136,0.2)'}}]});
+    });
+}
+function loadHeatmap(){
+    fetch('/api/realtime/sea-grid-heatmap').then(r=>r.json()).then(function(d){
+        if(!d||!d.length){ heatmapChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        var maxVal=Math.max.apply(null, d.map(function(x){return x.ship_cnt;}));
+        heatmapChart.setOption({tooltip:{trigger:'item',formatter:function(p){return '网格('+p.data[0]+','+p.data[1]+')<br/>渔船数:'+p.data[2];}},grid:{left:50,right:30,top:20,bottom:35},xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},visualMap:{min:1,max:maxVal,calculable:true,right:5,top:'middle',textStyle:{color:'#fff'},inRange:{color:['#ffd740','#ff9100','#ff3d00','#d50000']}},series:[{type:'scatter',data:d.map(function(x){return [x.x,x.y,x.ship_cnt];}),symbolSize:function(val){return Math.max(val[2]*2,8);}}]});
+    });
+}
+function loadAvgSpeedCompare(){
+    fetch('/api/realtime/avg-speed').then(r=>r.json()).then(function(d){
+        if(!d||!d.types||!d.types.length){ avgSpeedChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        var blueColors=['#003366','#0066aa','#00d4ff'];
+        avgSpeedChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.types,axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values.map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
+    });
+}
+function loadDistance(){
+    fetch('/api/static/max-distance-top20').then(r=>r.json()).then(function(d){
+        if(!d||!d.ships||!d.ships.length){ distanceChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
+        distanceChart.setOption({tooltip:{trigger:'axis'},grid:{left:140,right:25,top:10,bottom:25},xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'category',data:d.ships.reverse(),axisLabel:{color:'#fff',fontSize:10,width:120,overflow:'truncate'}},series:[{type:'bar',data:d.values.reverse(),itemStyle:{color:'#4ecdc4'}}]});
+    });
+}
+// ==================== 异常停泊 + 预警（当天） ====================
+function loadMergedAbnormal(){
+    fetch('/api/realtime/abnormal-stop-points').then(r=>r.json()).then(function(d){
+        var listContainer=document.getElementById('mergedAlertList');
+        if(!d||!d.length){
+            abnormalScatterChart.setOption({title:{text:'暂无异常停泊点',left:'center',top:'center',textStyle:{color:'#888'}},xAxis:{show:false},yAxis:{show:false},series:[]});
+            listContainer.innerHTML='<div style="color:#888;text-align:center;padding:10px;">暂无预警</div>';
+            return;
+        }
+        var maxDate='';
+        d.forEach(function(item){ var dt=(item.time||'').slice(0,10); if(dt>maxDate) maxDate=dt; });
+        d=d.filter(function(item){ return (item.time||'').slice(0,10)===maxDate; });
+        if(!d||!d.length){
+            abnormalScatterChart.setOption({title:{text:'当天暂无异常',left:'center',top:'center',textStyle:{color:'#888'}},xAxis:{show:false},yAxis:{show:false},series:[]});
+            listContainer.innerHTML='<div style="color:#888;text-align:center;padding:10px;">当天暂无预警</div>';
+            return;
+        }
+        var maxVal=Math.max.apply(null, d.map(function(x){return x.cnt;}));
+        abnormalScatterChart.setOption({
+            tooltip:{trigger:'item',formatter:function(p){if(!p||!p.data) return ''; var v=p.data.value; return '船只:'+p.data.ship_id+'<br/>坐标:('+v[0]+','+v[1]+')<br/>次数:'+v[2];}},
+            grid:{left:50,right:30,top:20,bottom:30},
+            xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},
+            visualMap:{min:1,max:maxVal,calculable:true,right:5,top:'middle',textStyle:{color:'#fff'},inRange:{color:['#ffa500','#ff6b00','#ff3c3c','#cc0000']}},
+            series:[{type:'scatter',data:d.map(function(x){return {value:[x.x,x.y,x.cnt],ship_id:x.ship_id};}),symbolSize:function(val){return Math.max(val[2]*4,10);}}]
+        });
+        var html='';
+        d.forEach(function(item){
+            var level=item.cnt>3?1:2;
+            var cls=level===1?'':'level-2';
+            var dotClass=level===1?'red':'orange';
+            html+='<div class="alert-item '+cls+'"><div class="alert-dot '+dotClass+'"></div><div class="alert-text">渔船 '+item.ship_id+' 在 '+item.sea_area+' 出现 '+item.cnt+' 个低速点</div><div class="alert-time">'+item.cnt+'次</div></div>';
+        });
+        listContainer.innerHTML=html;
+    });
+}
+// ==================== 跨界捕捞（当天） ====================
+function loadCrossBorder(){
+    fetch('/api/realtime/cross-border').then(r=>r.json()).then(function(d){
+        if(!d||!d.length){
+            crossChart.setOption({title:{text:'暂无跨界捕捞点',left:'center',top:'center',textStyle:{color:'#888'}},xAxis:{show:false},yAxis:{show:false},series:[]});
+            return;
+        }
+        var maxDate='';
+        d.forEach(function(item){ var dt=(item.time||'').slice(0,10); if(dt>maxDate) maxDate=dt; });
+        d=d.filter(function(item){ return (item.time||'').slice(0,10)===maxDate; });
+        if(!d||!d.length){
+            crossChart.setOption({title:{text:'当天暂无跨界捕捞点',left:'center',top:'center',textStyle:{color:'#888'}},xAxis:{show:false},yAxis:{show:false},series:[]});
+            return;
+        }
+        crossChart.setOption({
+            tooltip:{trigger:'item',formatter:function(p){if(!p||!p.data) return ''; return '船只:'+p.data.ship_id+'<br/>海域:'+p.data.sea_area+'<br/>坐标:('+p.data.value[0]+','+p.data.value[1]+')';}},
+            grid:{left:50,right:30,top:20,bottom:30},
+            xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},
+            series:[{type:'scatter',data:d.map(function(x){return {value:[x.x,x.y],ship_id:x.ship_id,sea_area:x.sea_area};}),symbolSize:10,itemStyle:{color:'#ffcc00'}}]
+        });
+    });
+}
+function loadShips(){
+    fetch('/api/realtime/ship-locations').then(r=>r.json()).then(function(data){
+        var layer=document.getElementById('boatLayer');
+        layer.innerHTML='';
+        if(!data||!data.length) return;
+        var xMin=Infinity,xMax=-Infinity,yMin=Infinity,yMax=-Infinity;
+        data.forEach(function(b){ if(b.x!==0||b.y!==0){ xMin=Math.min(xMin,b.x);xMax=Math.max(xMax,b.x);yMin=Math.min(yMin,b.y);yMax=Math.max(yMax,b.y); } });
+        if(xMin===Infinity){ data.forEach(function(b){ xMin=Math.min(xMin,b.x);xMax=Math.max(xMax,b.x);yMin=Math.min(yMin,b.y);yMax=Math.max(yMax,b.y); }); }
+        if(xMax-xMin<0.1){ xMax+=0.5;xMin-=0.5; }
+        if(yMax-yMin<0.1){ yMax+=0.5;yMin-=0.5; }
+        var padX=(xMax-xMin)*0.1, padY=(yMax-yMin)*0.1;
+        xMin-=padX; xMax+=padX; yMin-=padY; yMax+=padY;
+        data.forEach(function(boat){
+            var px=((boat.x-xMin)/(xMax-xMin))*100, py=((boat.y-yMin)/(yMax-yMin))*100;
+            var div=document.createElement('div');
+            div.className='boat '+(boat.work_type==='拖网'?'dragnet':boat.work_type==='围网'?'seine':boat.work_type==='流刺网'?'gillnet':'unknown');
+            div.style.left=Math.min(100,Math.max(0,px))+'%';
+            div.style.top=Math.min(100,Math.max(0,py))+'%';
+            div.title=boat.ship_id+' ('+boat.work_type+')';
+            layer.appendChild(div);
+        });
+    });
+}
+function refreshAll(){
+    loadSummary();loadShipTop20();loadDuration();loadHour();loadPie();loadTrend();
+    loadHeatmap();loadAvgSpeedCompare();loadDistance();
+    loadCarousel();loadShips();
+    loadMergedAbnormal();loadCrossBorder();
+    setUpdateTime();
+}
+refreshAll();
+setInterval(refreshAll,10000);
+window.addEventListener('resize',function(){
+    shipTopChart.resize();durationChart.resize();hourChart.resize();trendChart.resize();pieChart.resize();
+    heatmapChart.resize();avgSpeedChart.resize();abnormalScatterChart.resize();distanceChart.resize();crossChart.resize();
+});
+</script>
+</body>
+</html>
