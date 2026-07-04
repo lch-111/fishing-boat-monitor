@@ -35,7 +35,7 @@ body{background:#0b1a3a;color:#fff;font-family:'Microsoft YaHei',sans-serif;over
 .merged-alert-list::-webkit-scrollbar-thumb{background:#00d4ff;border-radius:3px}
 .alert-item{display:flex;align-items:center;padding:8px 10px;margin-bottom:6px;background:rgba(255,60,60,0.08);border-left:3px solid #ff3c3c;border-radius:4px;font-size:13px}
 .alert-item.level-2{background:rgba(255,165,0,0.08);border-left-color:#ffa500}
-.alert-dot{width:8px;height:8px;border-radius:50%;margin-right:10px;flex-shrink:0}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-right:16px;flex-shrink:0}
 .alert-dot.red{background:#ff3c3c}
 .alert-dot.orange{background:#ffa500}
 .alert-text{flex:1;color:#cfeeff}
@@ -66,10 +66,10 @@ body{background:#0b1a3a;color:#fff;font-family:'Microsoft YaHei',sans-serif;over
 .boat.unknown{background:#aaa;color:#aaa}
 .boat::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:currentColor;opacity:0.2;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse 2s infinite}
 @keyframes pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:0.3}100%{transform:translate(-50%,-50%) scale(3);opacity:0}}
-.map-legend{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.5);padding:8px 12px;border-radius:6px;font-size:12px;border:1px solid rgba(0,212,255,0.2)}
+.map-legend{position:absolute;bottom:10px;right:16px;background:rgba(0,0,0,0.5);padding:8px 12px;border-radius:6px;font-size:12px;border:1px solid rgba(0,212,255,0.2)}
 .legend-item{display:flex;align-items:center;margin:3px 0;color:#cfeeff}
 .legend-dot{width:8px;height:8px;border-radius:50%;margin-right:6px}
-.map-labels{position:absolute;top:10px;left:10px;font-size:13px;color:rgba(255,255,255,0.75);text-shadow:0 0 6px rgba(0,212,255,0.4)}
+.map-labels{position:absolute;top:-2px;left:10px;font-size:13px;color:rgba(255,255,255,0.75);text-shadow:0 0 6px rgba(0,212,255,0.4)}
 .map-labels div{margin:5px 0}
 </style>
 </head>
@@ -102,6 +102,7 @@ body{background:#0b1a3a;color:#fff;font-family:'Microsoft YaHei',sans-serif;over
                     <div>▲ 渤海湾渔场</div><div>▲ 黄海中部渔场</div><div>▲ 东海近海渔场</div>
                     <div>▲ 舟山群岛渔场</div><div>▲ 南海北部渔场</div>
                 </div>
+<div style="position:absolute;top:-2px;right:16px;color:#00ff88;font-size:15px;font-weight:bold;font-family:monospace;z-index:10;text-shadow:0 0 10px rgba(0,255,136,0.3);" id="mapDateDisplay">--</div>
                 <div class="map-legend">
                     <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>拖网作业</div>
                     <div class="legend-item"><div class="legend-dot" style="background:#4ecdc4"></div>围网作业</div>
@@ -151,6 +152,14 @@ var distanceChart=echarts.init(document.getElementById('distanceChart'));
 var abnormalScatterChart=echarts.init(document.getElementById('abnormalScatter'));
 var crossChart=echarts.init(document.getElementById('crossChart'));
 var carouselData=[], currentSlide=0, carouselTimer=null, isPaused=false;
+function fetchTodayDate(){
+    fetch("/api/realtime/today").then(r=>r.json()).then(function(d){
+        if(d && d.today){
+            document.getElementById("mapDateDisplay").innerText = d.today;
+        }
+    }).catch(function(){});
+}
+
 function setUpdateTime(){
     var n=new Date();
     document.getElementById('clock').innerText = n.getFullYear()+'-'+
@@ -223,19 +232,19 @@ function loadShipTop20(){
     fetch('/api/realtime/ship-top20').then(r=>r.json()).then(function(d){
         if(!d||!d.ships||!d.ships.length){ shipTopChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
         var blueColors=['#003566','#0088cc','#00d4ff'];
-        shipTopChart.setOption({tooltip:{trigger:'axis'},grid:{left:95,right:15,top:10,bottom:35},xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'category',data:d.ships.reverse(),axisLabel:{color:'#fff',fontSize:9,interval:0}},series:[{type:'bar',data:d.values.reverse().map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
+        shipTopChart.setOption({tooltip:{trigger:'axis'},grid:{left:55,right:15,top:10,bottom:35},xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'category',data:d.ships.reverse(),axisLabel:{color:'#fff',fontSize:8}},series:[{type:'bar',data:d.values.reverse().map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
     });
 }
 function loadDuration(){
     fetch('/api/static/work-duration-dist').then(r=>r.json()).then(function(d){
         if(!d||!d.ranges||!d.ranges.length){ durationChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
-        durationChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.ranges,axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#4ecdc4'}}]});
+        durationChart.setOption({tooltip:{trigger:'axis'},grid:{left:30,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.ranges,axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#4ecdc4'}}]});
     });
 }
 function loadHour(){
     fetch('/api/realtime/peak-hour').then(r=>r.json()).then(function(d){
         if(!d||!d.hours||!d.hours.length){ hourChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
-        hourChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.hours,axisLabel:{color:'#8ab4c7',fontSize:10,interval:2}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#00d4ff'}}]});
+        hourChart.setOption({tooltip:{trigger:'axis'},grid:{left:30,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.hours,axisLabel:{color:'#8ab4c7',fontSize:10,interval:2}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values,itemStyle:{color:'#00d4ff'}}]});
     });
 }
 function loadPie(){
@@ -247,7 +256,7 @@ function loadPie(){
 function loadTrend(){
     fetch('/api/realtime/daily-points').then(r=>r.json()).then(function(d){
         if(!d||!d.dates||!d.dates.length){ pieChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
-        pieChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.dates.slice(-7),axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value'},series:[{type:'line',data:d.values.slice(-7),smooth:true,lineStyle:{color:'#00ff88'},areaStyle:{color:'rgba(0,255,136,0.2)'}}]});
+        pieChart.setOption({tooltip:{trigger:'axis'},grid:{left:30,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.dates.slice(-7),axisLabel:{color:'#8ab4c7',fontSize:10}},yAxis:{type:'value'},series:[{type:'line',data:d.values.slice(-7),smooth:true,lineStyle:{color:'#00ff88'},areaStyle:{color:'rgba(0,255,136,0.2)'}}]});
     });
 }
 function loadHeatmap(){
@@ -261,7 +270,7 @@ function loadAvgSpeedCompare(){
     fetch('/api/realtime/avg-speed').then(r=>r.json()).then(function(d){
         if(!d||!d.types||!d.types.length){ avgSpeedChart.setOption({title:{text:'暂无数据',left:'center',top:'center',textStyle:{color:'#888'}}}); return; }
         var blueColors=['#003366','#0066aa','#00d4ff'];
-        avgSpeedChart.setOption({tooltip:{trigger:'axis'},grid:{left:45,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.types,axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values.map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
+        avgSpeedChart.setOption({tooltip:{trigger:'axis'},grid:{left:30,right:15,top:20,bottom:25},xAxis:{type:'category',data:d.types,axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},series:[{type:'bar',data:d.values.map(function(v,i){return {value:v,itemStyle:{color:blueColors[i%3]}}; })}]});
     });
 }
 function loadDistance(){
@@ -323,7 +332,26 @@ function loadCrossBorder(){
             tooltip:{trigger:'item',formatter:function(p){if(!p||!p.data) return ''; return '船只:'+p.data.ship_id+'<br/>海域:'+p.data.sea_area+'<br/>坐标:('+p.data.value[0]+','+p.data.value[1]+')';}},
             grid:{left:50,right:30,top:20,bottom:30},
             xAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},yAxis:{type:'value',axisLabel:{color:'#8ab4c7'}},
-            series:[{type:'scatter',data:d.map(function(x){return {value:[x.x,x.y],ship_id:x.ship_id,sea_area:x.sea_area};}),symbolSize:10,itemStyle:{color:'#ffcc00'}}]
+            series:[{
+        type:'scatter',
+        data:d.map(function(x){
+            return {value:[x.x,x.y], ship_id:x.ship_id, sea_area:x.sea_area};
+        }),
+        symbolSize:12,
+        itemStyle:{
+            color: function(param){
+                var area = param.data.sea_area;
+                var colors = {
+                    '渤海湾': '#ff6b6b',
+                    '黄海中部': '#4ecdc4', 
+                    '东海近海': '#ffe66d',
+                    '舟山群岛': '#a29bfe',
+                    '南海北部': '#fd79a8'
+                };
+                return colors[area] || '#ffcc00';
+            }
+        }
+    }]
         });
     });
 }
@@ -351,6 +379,7 @@ function loadShips(){
     });
 }
 function refreshAll(){
+    fetchTodayDate();
     loadSummary();loadShipTop20();loadDuration();loadHour();loadPie();loadTrend();
     loadHeatmap();loadAvgSpeedCompare();loadDistance();
     loadCarousel();loadShips();

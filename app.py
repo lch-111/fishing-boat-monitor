@@ -30,7 +30,6 @@ lock = threading.Lock()
 def load_all_data():
     global all_data, total_rows
     print("🔄 正在从 Hive 加载全部数据...")
-    # 注意：字段 direction 替代 heading
     df = spark.sql(f"SELECT vessel_id, x, y, speed, direction, record_time, operation_type, sea_area, dt FROM {TABLE} ORDER BY record_time")
     rows = df.collect()
     processed = []
@@ -48,12 +47,42 @@ def load_all_data():
     total_rows = len(all_data)
     print(f"✅ 加载 {total_rows} 条记录，时间范围: {all_data[0][5]} ~ {all_data[-1][5]}")
 
-# 启动时加载
 load_all_data()
 
 def get_current_data():
     with lock:
         return all_data[:current_index]
+
+def get_current_day_data():
+    """返回当前内存窗口中当天的数据"""
+    data = get_current_data()
+    if not data:
+        return data
+    max_date = None
+    for row in data:
+        t = row[5]
+        dt_str = t.strftime('%Y-%m-%d') if isinstance(t, datetime) else str(t)[:10]
+        if max_date is None or dt_str > max_date:
+            max_date = dt_str
+    filtered = []
+    for row in data:
+        t = row[5]
+        dt_str = t.strftime('%Y-%m-%d') if isinstance(t, datetime) else str(t)[:10]
+        if dt_str == max_date:
+            filtered.append(row)
+    return filtered
+
+def get_today_str():
+    data = get_current_data()
+    if not data:
+        return datetime.now().strftime('%Y-%m-%d')
+    max_date = None
+    for row in data:
+        t = row[5]
+        dt_str = t.strftime('%Y-%m-%d') if isinstance(t, datetime) else str(t)[:10]
+        if max_date is None or dt_str > max_date:
+            max_date = dt_str
+    return max_date or datetime.now().strftime('%Y-%m-%d')
 
 def advance_data():
     global current_index
@@ -62,7 +91,6 @@ def advance_data():
             current_index = min(current_index + 50, total_rows)
         return current_index
 
-# 初始给 50 条
 advance_data()
 
 def auto_advance():
@@ -84,10 +112,14 @@ def static_files(filename):
 def status():
     return jsonify({"current": current_index, "total": total_rows})
 
-# ==================== 所有接口基于内存实时计算 ====================
+@app.route('/api/realtime/today')
+def today():
+    return jsonify({"today": get_today_str()})
+
+# ==================== 所有接口基于当天数据计算 ====================
 @app.route('/api/realtime/summary')
 def summary():
-    data = get_current_data()
+    data = get_current_day_data()
     n = len(data)
     if n == 0:
         return jsonify({"total_points":0,"total_ships":0,"avg_speed":0,"hot_grid_count":0,"abnormal_count":0})
@@ -110,7 +142,7 @@ def summary():
 
 @app.route('/api/realtime/sea-grid-heatmap')
 def h1():
-    data=get_current_data()
+    data=get_current_day_data()
     g={}
     for row in data:
         x,y=row[1],row[2]
@@ -122,7 +154,7 @@ def h1():
 
 @app.route('/api/realtime/worktype-ratio')
 def h2():
-    data=get_current_data()
+    data=get_current_day_data()
     d={}
     for row in data:
         wt=row[6] if row[6] else '未知'
@@ -131,7 +163,7 @@ def h2():
 
 @app.route('/api/realtime/peak-hour')
 def h3():
-    data=get_current_data()
+    data=get_current_day_data()
     d={}
     for row in data:
         t=row[5]
@@ -144,7 +176,7 @@ def h3():
 
 @app.route('/api/static/work-duration-dist')
 def h4():
-    data=get_current_data()
+    data = get_current_data()
     ship_day={}
     for row in data:
         t=row[5]
@@ -176,15 +208,17 @@ def h4():
 
 @app.route('/api/realtime/ship-top20')
 def h5():
-    data=get_current_data()
-    d={}
-    for row in data: d[row[0]]=d.get(row[0],0)+1
-    sorted_ships=sorted(d.items(),key=lambda x:x[1],reverse=True)[:20]
-    return jsonify({"ships":[s[0] for s in sorted_ships],"values":[s[1] for s in sorted_ships]})
+    """累计已推进数据，按船累加轨迹点数"""
+    data = get_current_data()
+    d = {}
+    for row in data:
+        d[row[0]] = d.get(row[0], 0) + 1
+    sorted_ships = sorted(d.items(), key=lambda x: x[1], reverse=True)[:20]
+    return jsonify({"ships": [s[0] for s in sorted_ships], "values": [s[1] for s in sorted_ships]})
 
 @app.route('/api/realtime/avg-speed')
 def h6():
-    data=get_current_data()
+    data=get_current_day_data()
     d={}
     for row in data:
         wt=row[6] if row[6] else '未知'
@@ -197,7 +231,7 @@ def h6():
 
 @app.route('/api/realtime/daily-points')
 def h7():
-    data=get_current_data()
+    data = get_current_data()
     d={}
     for row in data:
         t=row[5]
@@ -209,7 +243,7 @@ def h7():
 
 @app.route('/api/static/max-distance-top20')
 def h8():
-    data=get_current_data()
+    data = get_current_data()
     ship_day={}
     for row in data:
         sid=row[0]; t=row[5]; x,y=row[1],row[2]
@@ -225,10 +259,9 @@ def h8():
     values=[round(v['max_dist'],2) for k,v in sorted_result]
     return jsonify({"ships":ships,"values":values})
 
-# ---------- 异常停泊点（添加 time 字段） ----------
 @app.route('/api/realtime/abnormal-stop-points')
 def h9():
-    data = get_current_data()
+    data = get_current_day_data()
     tmp = {}
     for row in data:
         if row[3] < 3.0:
@@ -247,7 +280,6 @@ def h9():
             avg_y = sum(v['ys'])/len(v['ys']) if v['ys'] else 0
             result.append({"ship_id": ship, "sea_area": area, "x": round(avg_x,2), "y": round(avg_y,2), "cnt": v['cnt']})
     result.sort(key=lambda x: x["cnt"], reverse=True)
-    # 添加当前数据的最新时间作为所有异常点的统一时间
     if data:
         latest_time = str(max(row[5] for row in data))
         for item in result:
@@ -256,7 +288,7 @@ def h9():
 
 @app.route('/api/realtime/cross-border')
 def h10():
-    data = get_current_data()
+    data = get_current_day_data()
     result = []
     for row in data:
         x, y = row[1], row[2]
@@ -272,7 +304,7 @@ def h10():
 
 @app.route('/api/realtime/ship-locations')
 def loc():
-    data = get_current_data()
+    data = get_current_day_data()
     latest = {}
     for row in data:
         sid = row[0]; t = row[5]
@@ -291,7 +323,7 @@ def loc():
 
 @app.route('/api/realtime/latest-boats')
 def lb():
-    data = get_current_data()
+    data = get_current_day_data()
     latest = {}
     for row in data:
         sid = row[0]; t = row[5]
@@ -309,5 +341,5 @@ def lb():
         })
     return jsonify(result)
 
-print("🌐 Spark 全量加载 + 内存推进模式启动成功")
+print("🌐 Spark 全量加载 + 内存推进模式启动成功 (已启用当天过滤)")
 app.run(host="0.0.0.0", port=5000, debug=False)
