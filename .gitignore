@@ -2,3 +2,6 @@ hadoop/
 index.html
 *.log
 .cleaned_ais_data_english.csv.crc
+*.bak
+*.bak2
+__pycache__/

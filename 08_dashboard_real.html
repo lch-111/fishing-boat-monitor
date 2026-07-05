@@ -79,10 +79,10 @@ body{background:#0b1a3a;color:#fff;font-family:'Microsoft YaHei',sans-serif;over
     <div class="time" id="clock">--</div>
 </div>
 <div class="stats-row">
-    <div class="stat-card"><div class="stat-value" id="totalPoints">--</div><div class="stat-label">轨迹点数</div></div>
-    <div class="stat-card"><div class="stat-value" id="totalShips">--</div><div class="stat-label">活跃渔船</div></div>
-    <div class="stat-card"><div class="stat-value" id="avgSpeed">--</div><div class="stat-label">平均航速 (节)</div></div>
-    <div class="stat-card"><div class="stat-value" id="hotGridCount">--</div><div class="stat-label">高频海域网格数</div></div>
+    <div class="stat-card"><div class="stat-value" id="totalPoints">--</div><div class="stat-label">轨迹点数 <span style="color:#8ab4c7;font-size:12px;font-weight:normal;">（本月累计: <span id="monthlyPoints" style="color:#00ff88;">--</span>）</span></div></div>
+    <div class="stat-card"><div class="stat-value" id="totalShips">--</div><div class="stat-label">活跃渔船 <span style="color:#8ab4c7;font-size:12px;font-weight:normal;">（本月累计: <span id="monthlyShips" style="color:#00ff88;">--</span>）</span></div></div>
+    <div class="stat-card"><div class="stat-value" id="avgSpeed">--</div><div class="stat-label">平均航速 (节) <span style="color:#8ab4c7;font-size:12px;font-weight:normal;">（本月累计: <span id="monthlyAvgSpeed" style="color:#00ff88;">--</span>）</span></div></div>
+    <div class="stat-card"><div class="stat-value" id="hotGridCount">--</div><div class="stat-label">高频海域网格数 <span style="color:#8ab4c7;font-size:12px;font-weight:normal;">（本月累计: <span id="monthlyHotGridCount" style="color:#00ff88;">--</span>）</span></div></div>
 </div>
 <div class="container">
     <div class="left-col">
@@ -226,6 +226,10 @@ function loadSummary(){
         document.getElementById('totalShips').innerText=d.total_ships||0;
         document.getElementById('avgSpeed').innerText=d.avg_speed||0;
         document.getElementById('hotGridCount').innerText=d.hot_grid_count||0;
+        document.getElementById('monthlyPoints').innerText=d.monthly_points||0;
+        document.getElementById('monthlyShips').innerText=d.monthly_ships||0;
+        document.getElementById('monthlyAvgSpeed').innerText=d.monthly_avg_speed||0;
+        document.getElementById('monthlyHotGridCount').innerText=d.monthly_hot_grid_count||0;
     });
 }
 function loadShipTop20(){

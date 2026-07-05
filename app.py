@@ -72,6 +72,23 @@ def get_current_day_data():
             filtered.append(row)
     return filtered
 
+
+def get_current_month_data():
+    """返回当前内存窗口中当月的数据"""
+    data = get_current_data()
+    if not data:
+        return data
+    # 获取当前数据的月份
+    today_str = get_today_str()
+    target_month = today_str[:7]  # "2025-06"
+    filtered = []
+    for row in data:
+        t = row[5]
+        dt_str = t.strftime('%Y-%m') if isinstance(t, datetime) else str(t)[:7]
+        if dt_str == target_month:
+            filtered.append(row)
+    return filtered
+
 def get_today_str():
     data = get_current_data()
     if not data:
@@ -119,10 +136,12 @@ def today():
 # ==================== 所有接口基于当天数据计算 ====================
 @app.route('/api/realtime/summary')
 def summary():
+    # ===== 当日统计 =====
     data = get_current_day_data()
     n = len(data)
     if n == 0:
-        return jsonify({"total_points":0,"total_ships":0,"avg_speed":0,"hot_grid_count":0,"abnormal_count":0})
+        return jsonify({"total_points":0,"total_ships":0,"avg_speed":0,"hot_grid_count":0,"abnormal_count":0,
+                       "monthly_points":0,"monthly_ships":0,"monthly_avg_speed":0,"monthly_hot_grid_count":0})
     ships=set(); speeds=[]; grids=set(); tmp={}
     for row in data:
         ships.add(row[0]); speeds.append(row[3])
@@ -134,10 +153,29 @@ def summary():
             tmp[key]=tmp.get(key,0)+1
     abnormal=sum(1 for v in tmp.values() if v>=2)
     avg_spd=round(sum(speeds)/len(speeds),1) if speeds else 0
+    
+    # ===== 月度累计统计 =====
+    month_data = get_current_month_data()
+    m_n = len(month_data)
+    if m_n == 0:
+        m_ships=set(); m_speeds=[]; m_grids=set()
+    else:
+        m_ships=set(); m_speeds=[]; m_grids=set()
+        for row in month_data:
+            m_ships.add(row[0]); m_speeds.append(row[3])
+            x,y=row[1],row[2]
+            if x is not None and y is not None and x!=0 and y!=0:
+                m_grids.add((int(x//10)*10, int(y//10)*10))
+    m_avg_spd=round(sum(m_speeds)/len(m_speeds),1) if m_speeds else 0
+    
     return jsonify({
+        # 当日
         "total_points":n,"total_ships":len(ships),
         "avg_speed":avg_spd,"hot_grid_count":len(grids),
-        "abnormal_count":abnormal
+        "abnormal_count":abnormal,
+        # 月度累计
+        "monthly_points":m_n,"monthly_ships":len(m_ships),
+        "monthly_avg_speed":m_avg_spd,"monthly_hot_grid_count":len(m_grids)
     })
 
 @app.route('/api/realtime/sea-grid-heatmap')
